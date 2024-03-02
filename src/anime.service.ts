@@ -1,162 +1,88 @@
 import { Injectable } from '@nestjs/common';
-
-interface IndexAnimeType {
-  id: number;
-  siteUrl: string;
-  title: {
-    romaji: string;
-    english: string;
-    native: string;
-  };
-  coverImage: {
-    medium: string;
-    extraLarge: string;
-    large: string;
-  };
-}
-
-interface ShowAnimeType {
-  id: number;
-  startDate: {
-    year: number;
-    month: number;
-    day: number;
-  };
-  endDate: {
-    year: number;
-    month: number;
-    day: number;
-  };
-  title: {
-    romaji: string;
-    english: string;
-    native: string;
-  };
-  status:
-    | 'FINISHED'
-    | 'RELEASING'
-    | 'NOT_YET_RELEASED'
-    | 'CANCELLED'
-    | 'HIATUS';
-  episodes: number;
-  genres: string[];
-  season: 'SPRING' | 'WINTER' | 'SUMMER' | 'FALL';
-  coverImage: {
-    extraLarge: string;
-    large: string;
-    medium: string;
-    color: string;
-  };
-  bannerImage: string;
-}
-
-const showAnimeQuery = `
-  query ($id: Int) {
-    Media(id: $id){
-      id
-      startDate {
-        year
-        month
-        day
-      }
-      endDate {
-        year
-        month
-        day
-      }
-        title {
-          romaji
-          english
-          native
-        }
-      status
-      episodes
-      genres
-      season
-      coverImage {
-        extraLarge
-        large
-        medium
-        color
-      }
-      bannerImage
-      
-    }
-  }
-`;
-
-const indexAnimeQuery = `
-{
-  Page  {
-    pageInfo {
-      total
-      perPage
-      currentPage
-      lastPage
-      hasNextPage
-    }
-    media ( type: ANIME ) {
-      id
-      siteUrl
-      title {
-        romaji
-        english
-        native
-      }
-      coverImage {
-        medium
-        extraLarge
-        large
-        color
-      }
-    }
-  } 
-}
-`;
+import type { MainAnimePageDataType } from './interfaces/MainAnimePageDataType';
+import type { AnimePageDataType } from './interfaces/AnimePageDataType';
+import IndexAnimeQuery from './queries/IndexAnimeQuery';
+import getAnimePageQuery from './queries/AnimePageQuery';
+import getAnimeBannerQuery from './queries/AnimeBannerQuery';
 
 @Injectable()
 export class AnimeService {
-  async show(id: string): Promise<ShowAnimeType> {
-    const variables = {
-      id
+  async getMainAnimePageData(): Promise<MainAnimePageDataType> {
+    const url = 'https://shikimori.one/api/graphql';
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+        'Accept-Encoding': 'gzip, deflate, br'
+      },
+      body: JSON.stringify({
+        query: IndexAnimeQuery
+      })
     };
 
-    const url = 'https://graphql.anilist.co',
-      options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          query: showAnimeQuery,
-          variables: variables
-        })
-      };
-
     try {
       const res = await fetch(url, options);
       const animeList = await res.json();
-      return animeList.data.Media;
-    } catch (error) {}
+      return animeList.data.animes;
+    } catch (error) {
+      console.error(error);
+    }
   }
-  async index(): Promise<IndexAnimeType[]> {
-    const url = 'https://graphql.anilist.co',
-      options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          query: indexAnimeQuery
-        })
-      };
+
+  async getAnimePageData(id: string): Promise<AnimePageDataType> {
+    const url = 'https://shikimori.one/api/graphql';
+    let data;
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+        'Accept-Encoding': 'gzip, deflate, br'
+      },
+      body: JSON.stringify({
+        query: getAnimePageQuery(id)
+      })
+    };
 
     try {
       const res = await fetch(url, options);
       const animeList = await res.json();
-      return animeList.data.Page.media;
-    } catch (error) {}
+      data = animeList.data.animes[0];
+    } catch (error) {
+      console.error(error);
+    }
+
+    const bannerUrl = 'https://graphql.anilist.co';
+    const bannerOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+        'Accept-Encoding': 'gzip, deflate, br'
+      },
+      body: JSON.stringify({
+        query: getAnimeBannerQuery(data.malId)
+      })
+    };
+
+    try {
+      const bannerRes = await fetch(bannerUrl, bannerOptions);
+      const banner = await bannerRes.json();
+      data.bannerImage = banner.data.Media.bannerImage;
+      data.coverImage = banner.data.Media.coverImage.large;
+      return data;
+    } catch (error) {
+      console.error(error);
+    }
+
+    // try {
+    //   const res = await fetch(url, options);
+    //   const animeList = await res.json();
+    //   return animeList.data.animes[0];
+    // } catch (error) {
+    //   console.error(error);
+    // }
   }
 }

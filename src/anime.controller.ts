@@ -7,12 +7,12 @@ export class AnimeController {
 
   @Get(`anime/:id`)
   getAnimeId(@Param() params: { id: string }): object {
-    return this.animeService.show(params.id);
+    return this.animeService.getAnimePageData(params.id);
   }
 
   @Get('anime')
   getAnime(): object {
-    return this.animeService.index();
+    return this.animeService.getMainAnimePageData();
   }
 
   @Post()
