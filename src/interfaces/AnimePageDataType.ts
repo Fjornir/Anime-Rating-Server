@@ -81,6 +81,7 @@ export interface AnimePageDataType {
     playerUrl: string;
     imageUrl: string;
   }[];
+
   screenshots: {
     id: number;
     originalUrl: string;
